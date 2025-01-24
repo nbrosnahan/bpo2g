@@ -156,7 +156,7 @@ def read_csv_data(filepath):
 @click.option('--csv_directory', '-c', required=True, help="Local directory with Omron BP .csv export files")
 @click.option('--username', '-u', required=True, help="Garmin Connect Username")
 @click.password_option(prompt="Garmin Connect Password", confirmation_prompt=False)
-@click.option('--requestdelayms', '-r', required=False, default=200, help="Garmin Connect Request Delay (in ms)")
+@click.option('--requestdelayms', '-r', required=False, default=0, help="Garmin Connect Request Delay (in ms)")
 def main(dry_run, username, password, csv_directory, requestdelayms):
     try:
         logger.debug(f"Inputs received: dry_run={dry_run}, username={username}, csv_directory={csv_directory}")

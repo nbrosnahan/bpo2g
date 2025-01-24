@@ -3,5 +3,5 @@ requires = ["setuptools>=45", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "omron2garmin"
+name = "bpo2g"
 version = "0.1.0"
