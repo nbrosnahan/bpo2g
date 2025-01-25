@@ -10,17 +10,20 @@ import sys
 import click
 
 # Configure logging
-logging.basicConfig(level=logging.DEBUG,
-                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 
 # Create a logger
 logger = logging.getLogger(__name__)
+
 
 class BPReading(NamedTuple):
     time: datetime
     systolic: int
     diastolic: int
     bpm: int
+
 
 def list_omron_bp_csv_files(directory):
     paths = []
@@ -34,20 +37,33 @@ def list_omron_bp_csv_files(directory):
 
     return paths
 
+
 def read_omron_bp_csv_file(csv_file_path):
     logger.debug(f"Loading file: {csv_file_path}")
 
     readings = []
 
     # Open and read the CSV file
-    with open(csv_file_path, mode='r', newline='') as file:
-        expected_columns = ['Date', 'Time', 'Systolic (mmHg)', 'Diastolic (mmHg)', 'Pulse (bpm)', 'Symptoms', 'Consumed', 'TruRead', 'Notes']
+    with open(csv_file_path, mode="r", newline="") as file:
+        expected_columns = [
+            "Date",
+            "Time",
+            "Systolic (mmHg)",
+            "Diastolic (mmHg)",
+            "Pulse (bpm)",
+            "Symptoms",
+            "Consumed",
+            "TruRead",
+            "Notes",
+        ]
 
         csv_reader = csv.reader(file)  # Create a CSV reader object
         found_columns = next(csv_reader)
 
         if found_columns != expected_columns:
-            logger.error("First line of .csv file does not match expected Omron BP .csv header.")
+            logger.error(
+                "First line of .csv file does not match expected Omron BP .csv header."
+            )
             logger.error(f"Expected: {expected_columns}")
             logger.error(f"Found: {found_columns}")
             raise ValueError("Invalid Omron BP .csv format")
@@ -68,10 +84,12 @@ def read_omron_bp_csv_file(csv_file_path):
 
     return readings
 
+
 def parse_datetime(date_string, time_string):
     datetime_string = f"{date_string} {time_string}"
-    date_object = datetime.strptime(datetime_string, '%b %d %Y %H:%M')
+    date_object = datetime.strptime(datetime_string, "%b %d %Y %H:%M")
     return date_object
+
 
 def sort_dict_by_datetime_keys(my_dict):
     """
@@ -84,6 +102,7 @@ def sort_dict_by_datetime_keys(my_dict):
       An OrderedDict with the keys sorted by their datetime values.
     """
     return OrderedDict(sorted(my_dict.items(), key=lambda item: item[0]))
+
 
 def datetime_to_iso_string(dt_obj):
     """
@@ -98,6 +117,7 @@ def datetime_to_iso_string(dt_obj):
     if dt_obj.tzinfo is None:
         dt_obj = dt_obj.replace(tzinfo=timezone.utc)
     return dt_obj.isoformat()
+
 
 def is_within_last_six_months(date_obj):
     """
@@ -127,7 +147,7 @@ def output_basic_stats(sorted_readings):
             tot_in_last_6_months += 1
 
         logger.debug(value)
-    
+
     logger.info(f"Readings in the last 6 months: {tot_in_last_6_months}")
     logger.info(f"Avg Systolic: {tot_sys / tot_in_last_6_months * 1.0}")
     logger.info(f"Avg Diastolic: {tot_dia / tot_in_last_6_months * 1.0}")
@@ -151,15 +171,29 @@ def read_csv_data(filepath):
 
     return sorted_readings
 
+
 @click.command()
-@click.option('--dry_run', '-d', default=False, is_flag=True, help="Do a dry-run")
-@click.option('--csv_directory', '-c', required=True, help="Local directory with Omron BP .csv export files")
-@click.option('--username', '-u', required=True, help="Garmin Connect Username")
+@click.option("--dry_run", "-d", default=False, is_flag=True, help="Do a dry-run")
+@click.option(
+    "--csv_directory",
+    "-c",
+    required=True,
+    help="Local directory with Omron BP .csv export files",
+)
+@click.option("--username", "-u", required=True, help="Garmin Connect Username")
 @click.password_option(prompt="Garmin Connect Password", confirmation_prompt=False)
-@click.option('--requestdelayms', '-r', required=False, default=0, help="Garmin Connect Request Delay (in ms)")
+@click.option(
+    "--requestdelayms",
+    "-r",
+    required=False,
+    default=0,
+    help="Garmin Connect Request Delay (in ms)",
+)
 def main(dry_run, username, password, csv_directory, requestdelayms):
     try:
-        logger.debug(f"Inputs received: dry_run={dry_run}, username={username}, csv_directory={csv_directory}")
+        logger.debug(
+            f"Inputs received: dry_run={dry_run}, username={username}, csv_directory={csv_directory}"
+        )
 
         # Add your file processing logic here
         sorted_readings = read_csv_data(csv_directory)
@@ -182,10 +216,17 @@ def main(dry_run, username, password, csv_directory, requestdelayms):
             else:
                 log_prefix = "garmin.set_blood_pressure"
 
-            logger.info(f"{log_prefix}({value.systolic}, {value.diastolic}, {value.bpm}, {datetime_to_iso_string(value.time)})")
+            logger.info(
+                f"{log_prefix}({value.systolic}, {value.diastolic}, {value.bpm}, {datetime_to_iso_string(value.time)})"
+            )
 
             if not dry_run:
-                garmin.set_blood_pressure(value.systolic, value.diastolic, value.bpm, datetime_to_iso_string(value.time))
+                garmin.set_blood_pressure(
+                    value.systolic,
+                    value.diastolic,
+                    value.bpm,
+                    datetime_to_iso_string(value.time),
+                )
             if requestdelayms > 0:
                 logger.info(f"Delaying by {requestdelayms} ms")
                 time.sleep(requestdelayms / 1000)
@@ -194,5 +235,5 @@ def main(dry_run, username, password, csv_directory, requestdelayms):
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
