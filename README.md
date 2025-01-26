@@ -31,12 +31,13 @@ Once you have all the reports you want to migrate downloaded, you can proceed to
 
 Python Setup: 
 ```
-python -m venv venv
-source venv/bin/activate
+python -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 ```
+or you can run the included script: `python_setup.sh`
 
-Running the script:
+Running the bpo2g script:
 ```
 python3 src/bpo2g.py -c <csv_directory> -u <garmin_connect_email_username>
 

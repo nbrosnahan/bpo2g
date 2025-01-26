@@ -1,7 +1,23 @@
 [build-system]
-requires = ["setuptools>=45", "wheel"]
+requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "bpo2g"
 version = "0.1.0"
+authors = [{ name = "Nick Brosnahan", email = "nbrosnahan@gmail.com" }]
+description = "Uploads Omron Blood Pressure reports in CSV-format to Garmin Connect"
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/nbrosnahan/bpo2g"
+"Bug Tracker" = "https://github.com/nbrosnahan/bpo2g/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
