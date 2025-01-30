@@ -19,27 +19,40 @@ confirm() {
     done
 }
 
+# Check for uv
+uv --version
+if [ $? != 0 ]; then
+    if confirm "Would you like to install uv?"; then
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+    else
+        echo "Operation canceled."
+        exit 1
+    fi
+else
+    echo "Found uv."
+fi
+
 if [ -d ./.venv ]; then
     echo "Found .venv/"
 else
     echo ".venv/ not found."
     if confirm "Would you like to create it?"; then
-        python3 -m venv .venv
+        uv venv
     else
         echo "Operation canceled."
         exit 1
     fi
 fi
 
-source ./.venv/bin/activate
+source .venv/bin/activate
 echo "Virtual environment activated."
 
 if confirm "Install requirements?"; then
     echo "Installing requirements..."
-    pip3 install -r requirements.txt
+    uv pip install -r requirements.txt
 else
     echo "Operation canceled."
     exit 1
 fi
 
-echo "Run 'source ./.venv/bin/activate' in your shell"
+echo "Run 'source .venv/bin/activate' in your shell"

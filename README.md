@@ -29,13 +29,12 @@ Jan 6 2025,08:46,117,76,50,-,-,-,-
 
 Once you have all the reports you want to migrate downloaded, you can proceed to setup the requirements to run the script.
 
-Python Setup: 
-```
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-or you can run the included script: `python_setup.sh`
+In the Makefile, there are 4 targets:
+
+- setup: Install uv, setup venv, and install requirements.txt
+- build: Build the python package using setuptools
+- lint: Lint the python code using ruff
+- format: Format the python code using ruff
 
 Running the bpo2g script:
 ```
