@@ -12,3 +12,6 @@ lint:
 format:
 	uv pip install ruff
 	uv run ruff format
+
+sync:
+	uv pip sync requirements.txt
