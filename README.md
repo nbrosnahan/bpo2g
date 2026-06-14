@@ -27,25 +27,65 @@ Jan 10 2025,07:49,114,71,47,-,-,-,-
 Jan 6 2025,08:46,117,76,50,-,-,-,-
 ```
 
-Once you have all the reports you want to migrate downloaded, you can proceed to setup the requirements to run the script.
+Once you have all the reports you want to migrate downloaded, you can proceed to set up the requirements to run the script.
 
-In the Makefile, there are 4 targets:
+## Setup
 
-- setup: Install uv, setup venv, and install requirements.txt
-- build: Build the python package using setuptools
-- lint: Lint the python code using ruff
-- format: Format the python code using ruff
+This project uses [`uv`](https://docs.astral.sh/uv/) and requires Python 3.12+.
 
-Running the bpo2g script:
-```
-python3 src/bpo2g.py -c <csv_directory> -u <garmin_connect_email_username>
-
-The script will securely prompt for the garmin_connect_password
+```bash
+make setup      # uv sync — create/update the venv from uv.lock
 ```
 
-The program loads each .csv file in the CSV directory and uploads it to Garmin Connect using the garminconnect python libary from here: [https://pypi.org/project/garminconnect/](https://pypi.org/project/garminconnect/)
+Makefile targets:
 
-You will need to supply a valid username and password for Garmin Connect to the script.
+- `setup` / `sync`: create/update the uv-managed venv from `uv.lock`
+- `build`: build the python package
+- `lint`: ruff lint
+- `format`: ruff format
+- `typecheck`: mypy
+- `test`: pytest
+- `preflight`: lint + typecheck + test (run before pushing)
+- `bootstrap`: mint/refresh the Garmin token session (see below)
+
+## Authenticating to Garmin Connect
+
+> **Why this is a two-step process:** Garmin blocks its mobile/password login
+> endpoint (HTTP 429). The `garminconnect` library works around this internally
+> — its login tries several strategies (including Garmin's web sign-in widget
+> via a browser-impersonating TLS client) and saves a reusable token session.
+> bpo2g mints that session once (it lasts ~1 year) with
+> `bootstrap_garmin_session.py`, then the upload command authenticates from the
+> saved session and never needs your password again.
+
+**Step 1 — mint the token session (roughly yearly):**
+
+```bash
+cp .env.example .env        # then fill in GARMIN_USERNAME / GARMIN_PASSWORD
+make bootstrap              # uv run python bootstrap_garmin_session.py
+```
+
+This writes the token session to `~/.garminconnect` by default (override with
+`--tokenstore PATH` or the `GARMINTOKENS` env var). If your account has MFA
+enabled, you'll be prompted for the code. If your `.env` stores credentials as
+`op://` references (1Password), run it under `op run`:
+
+```bash
+op run --env-file=.env -- uv run python bootstrap_garmin_session.py
+```
+
+**Step 2 — upload your readings (any time, no login):**
+
+```bash
+uv run python src/bpo2g.py -c <csv_directory> [--dry_run] [--requestdelayms <ms>]
+```
+
+bpo2g loads the saved session and uploads each reading. If the session is
+missing or expired it will tell you to re-run the bootstrap. It uploads using
+the [garminconnect](https://pypi.org/project/garminconnect/) library.
+
+> **Rate limit:** avoid running more than ~8–10 times per day, and remember
+> bpo2g does **not** de-duplicate — don't upload overlapping date ranges.
 
 
 

@@ -1,13 +1,34 @@
+# Copyright 2026 Tumbling Potato
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import csv
-import os
-from typing import NamedTuple
-from datetime import datetime, timedelta, timezone
 import logging
-from collections import OrderedDict
-from garminconnect import Garmin
-import time
+import os
 import sys
+import time
+from collections import OrderedDict
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from typing import NamedTuple
+
 import click
+from garminconnect import Garmin
+
+# Default location of the persisted Garmin OAuth token session, matching the
+# garminconnect convention. Override with --tokenstore or the GARMINTOKENS env
+# var. Mint/refresh it with: uv run python bootstrap_garmin_session.py
+DEFAULT_TOKENSTORE = "~/.garminconnect"
 
 # Configure logging
 logging.basicConfig(
@@ -25,7 +46,7 @@ class BPReading(NamedTuple):
     bpm: int
 
 
-def list_omron_bp_csv_files(directory):
+def list_omron_bp_csv_files(directory: str) -> list[str]:
     paths = []
     for filename in os.listdir(directory):
         file_path = os.path.abspath(os.path.join(directory, filename))
@@ -38,13 +59,13 @@ def list_omron_bp_csv_files(directory):
     return paths
 
 
-def read_omron_bp_csv_file(csv_file_path):
+def read_omron_bp_csv_file(csv_file_path: str) -> list[BPReading]:
     logger.debug(f"Loading file: {csv_file_path}")
 
     readings = []
 
     # Open and read the CSV file
-    with open(csv_file_path, mode="r", newline="") as file:
+    with open(csv_file_path, newline="") as file:
         expected_columns = [
             "Date",
             "Time",
@@ -85,13 +106,13 @@ def read_omron_bp_csv_file(csv_file_path):
     return readings
 
 
-def parse_datetime(date_string, time_string):
+def parse_datetime(date_string: str, time_string: str) -> datetime:
     datetime_string = f"{date_string} {time_string}"
     date_object = datetime.strptime(datetime_string, "%b %d %Y %H:%M")
     return date_object
 
 
-def sort_dict_by_datetime_keys(my_dict):
+def sort_dict_by_datetime_keys(my_dict: dict[datetime, BPReading]) -> OrderedDict[datetime, BPReading]:
     """
     Sorts a dictionary by its datetime keys in ascending order.
 
@@ -104,7 +125,7 @@ def sort_dict_by_datetime_keys(my_dict):
     return OrderedDict(sorted(my_dict.items(), key=lambda item: item[0]))
 
 
-def datetime_to_iso_string(dt_obj):
+def datetime_to_iso_string(dt_obj: datetime) -> str:
     """
     Converts a datetime object to an ISO 8601 format string.
 
@@ -115,11 +136,11 @@ def datetime_to_iso_string(dt_obj):
       The ISO 8601 format string representing the datetime object.
     """
     if dt_obj.tzinfo is None:
-        dt_obj = dt_obj.replace(tzinfo=timezone.utc)
+        dt_obj = dt_obj.replace(tzinfo=UTC)
     return dt_obj.isoformat()
 
 
-def is_within_last_six_months(date_obj):
+def is_within_last_six_months(date_obj: datetime) -> bool:
     """
     Checks if the given datetime object is within the last 6 months.
 
@@ -133,7 +154,7 @@ def is_within_last_six_months(date_obj):
     return date_obj >= six_months_ago
 
 
-def output_basic_stats(sorted_readings):
+def output_basic_stats(sorted_readings: OrderedDict[datetime, BPReading]) -> None:
     tot_sys = 0
     tot_dia = 0
     tot_bpm = 0
@@ -149,13 +170,16 @@ def output_basic_stats(sorted_readings):
         logger.debug(value)
 
     logger.info(f"Readings in the last 6 months: {tot_in_last_6_months}")
+    if tot_in_last_6_months == 0:
+        logger.info("No readings in the last 6 months; skipping averages.")
+        return
     logger.info(f"Avg Systolic: {tot_sys / tot_in_last_6_months * 1.0}")
     logger.info(f"Avg Diastolic: {tot_dia / tot_in_last_6_months * 1.0}")
     logger.info(f"Avg BPM: {tot_bpm / tot_in_last_6_months * 1.0}")
 
 
-def read_csv_data(filepath):
-    all_readings = {}
+def read_csv_data(filepath: str) -> OrderedDict[datetime, BPReading]:
+    all_readings: dict[datetime, BPReading] = {}
     paths = list_omron_bp_csv_files(filepath)
     for path in paths:
         if path.endswith(".csv"):
@@ -172,6 +196,44 @@ def read_csv_data(filepath):
     return sorted_readings
 
 
+def login_garmin(tokenstore: str) -> Garmin:
+    """Resume a persisted Garmin Connect session from ``tokenstore``.
+
+    Garmin blocks ``garth``'s credential login endpoint (HTTP 429), so bpo2g
+    never logs in with a username/password. It loads the OAuth token session
+    minted by ``bootstrap_garmin_session.py`` and auto-refreshes the OAuth2
+    token. If the session is missing or expired, instruct the user to (re-)run
+    the bootstrap rather than falling back to the blocked credential flow.
+
+    Args:
+      tokenstore: Path to the saved garth token session directory.
+
+    Returns:
+      A logged-in ``Garmin`` client.
+    """
+    resolved = str(Path(tokenstore).expanduser())
+    garmin = Garmin()
+    try:
+        garmin.login(tokenstore=resolved)
+    except FileNotFoundError:
+        logger.error(
+            "No Garmin session found at %s. Mint one with:\n"
+            "    uv run python bootstrap_garmin_session.py",
+            resolved,
+        )
+        sys.exit(1)
+    except Exception as e:  # noqa: BLE001 — surface a clear remediation hint
+        logger.error(
+            "Failed to resume the Garmin session at %s (%s). The token session "
+            "may be missing or expired (~yearly). Re-mint it with:\n"
+            "    uv run python bootstrap_garmin_session.py",
+            resolved,
+            e,
+        )
+        sys.exit(1)
+    return garmin
+
+
 @click.command()
 @click.option("--dry_run", "-d", default=False, is_flag=True, help="Do a dry-run")
 @click.option(
@@ -180,8 +242,15 @@ def read_csv_data(filepath):
     required=True,
     help="Local directory with Omron BP .csv export files",
 )
-@click.option("--username", "-u", required=True, help="Garmin Connect Username")
-@click.password_option(prompt="Garmin Connect Password", confirmation_prompt=False)
+@click.option(
+    "--tokenstore",
+    "-t",
+    default=lambda: os.getenv("GARMINTOKENS", DEFAULT_TOKENSTORE),
+    show_default=DEFAULT_TOKENSTORE,
+    help="Path to the persisted Garmin OAuth token session "
+    "(default: $GARMINTOKENS or ~/.garminconnect). "
+    "Mint it with bootstrap_garmin_session.py.",
+)
 @click.option(
     "--requestdelayms",
     "-r",
@@ -189,10 +258,10 @@ def read_csv_data(filepath):
     default=0,
     help="Garmin Connect Request Delay (in ms)",
 )
-def main(dry_run, username, password, csv_directory, requestdelayms):
+def main(dry_run: bool, csv_directory: str, tokenstore: str, requestdelayms: int) -> None:
     try:
         logger.debug(
-            f"Inputs received: dry_run={dry_run}, username={username}, csv_directory={csv_directory}"
+            f"Inputs received: dry_run={dry_run}, csv_directory={csv_directory}, tokenstore={tokenstore}"
         )
 
         # Add your file processing logic here
@@ -204,9 +273,8 @@ def main(dry_run, username, password, csv_directory, requestdelayms):
 
         output_basic_stats(sorted_readings)
 
-        # Login to Garmin Connect
-        garmin = Garmin(username, password)
-        garmin.login()
+        # Resume the persisted Garmin Connect session (no credential login).
+        garmin = login_garmin(tokenstore)
         logger.info(garmin)
 
         # Upload BP data to Garmin Connect
