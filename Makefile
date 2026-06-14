@@ -1,17 +1,27 @@
-setup:
-	./python_uv_setup.sh
+.PHONY: setup build lint format typecheck test sync bootstrap preflight
+
+# Create/update the uv-managed virtualenv from uv.lock (incl. dev deps).
+setup sync:
+	uv sync
 
 build:
-	uv pip install build
 	uv run python -m build
 
 lint:
-	uv pip install ruff
-	uv run ruff check
+	uv run ruff check src/ tests/ bootstrap_garmin_session.py
 
 format:
-	uv pip install ruff
-	uv run ruff format
+	uv run ruff format src/ tests/ bootstrap_garmin_session.py
 
-sync:
-	uv pip sync requirements.txt
+typecheck:
+	uv run mypy src/ bootstrap_garmin_session.py
+
+test:
+	uv run pytest
+
+# Mint/refresh the Garmin OAuth token session (needs GARMIN_USERNAME/PASSWORD).
+bootstrap:
+	uv run python bootstrap_garmin_session.py
+
+# Full local pre-merge gate.
+preflight: lint typecheck test

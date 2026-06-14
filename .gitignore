@@ -1,5 +1,21 @@
 venv/
+.venv/
 __pycache__/
 .idea/
+.vscode/
 dist/
+build/
 src/bpo2g.egg*
+*.egg-info/
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+.pytest-results.xml
+.coverage
+htmlcov/
+
+# Secrets / credentials — never commit
+.env
+# Project-local Garmin token session, if --tokenstore points inside the repo
+.garminconnect/
+.garmin_session/

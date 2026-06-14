@@ -10,73 +10,85 @@ bpo2g (Blood Pressure Omron to Garmin) is a Python CLI that parses blood pressur
 
 ## Tech Stack
 
-- **Python 3.10+** with `uv` as package manager
+- **Python 3.12+** with `uv` as package manager (canonical metadata in `pyproject.toml`, locked in `uv.lock`)
 - **Click** — CLI argument parsing
-- **garminconnect / garth** — Garmin Connect API integration
-- **pydantic** — data validation
+- **garminconnect** (0.3.x) — Garmin Connect API integration. Its `login()` is a Cloudflare-aware strategy chain that mints/persists a token session (it pulls `curl_cffi` transitively for TLS impersonation — we don't depend on it directly). Auth is via that persisted session, not credentials — see below.
+- **python-dotenv** — loads bootstrap credentials from `.env`
 - **ruff** — linting and formatting
-- **pytest** — testing
+- **mypy** — type checking
+- **pytest** (+ `pytest-randomly`, `pytest-cov`) — testing
 
 ## Build & Run
 
 ```bash
-# Initial setup (installs uv, creates venv, installs deps)
-make setup
+make setup        # uv sync — create/update venv from uv.lock (incl. dev deps)
+make build        # build the package
+make lint         # ruff check
+make format       # ruff format
+make typecheck    # mypy src/
+make test         # pytest
+make preflight    # lint + typecheck + test (run before pushing)
+make bootstrap    # mint/refresh the Garmin token session (see Garmin auth)
 
-# Build the package
-make build
+# Upload readings (no login — uses the persisted token session):
+uv run python src/bpo2g.py -c <csv_directory> [--tokenstore <path>] [--dry_run] [--requestdelayms <ms>]
+```
 
-# Lint
-make lint
+## Garmin auth model
 
-# Format
-make format
+**Garmin blocks the mobile/password login endpoint** (HTTP 429), so a session can't be minted by a naive `login(user, pass)`. garminconnect 0.3.x works around this internally: `Garmin.login()` runs a multi-strategy chain (mobile + **SSO embed widget** + portal web, all via `curl_cffi` Chrome TLS impersonation) — the mobile strategies 429, and it falls through to the web SSO widget, which succeeds. It then persists a native `garmin_tokens.json` to the token store. (This is why bpo2g no longer ships a hand-rolled SSO/curl_cffi bootstrap — garminconnect maintains that now. The sibling `~/Projects/WithingsSync` still has the custom version because it pins old `withings-sync`/`garth`.)
 
-# Sync dependencies
-make sync
+bpo2g splits this into two steps so the upload command never touches credentials:
 
-# Run
-python3 src/bpo2g.py -c <csv_directory> -u <garmin_email> [--dry_run] [--requestdelayms <ms>]
+- **`bootstrap_garmin_session.py`** — a thin wrapper that calls `Garmin(email, password).login(tokenstore=...)` once (a roughly-yearly step; the session lasts ~1 year). garminconnect mints/persists the session via the strategy chain above. Credentials come from `GARMIN_USERNAME`/`GARMIN_PASSWORD` in `.env` or the environment; MFA accounts are prompted interactively.
+- **`bpo2g.py`** (upload) — loads the persisted session via `Garmin().login(tokenstore=...)`, **token-only, no credentials**. If the session is missing/expired it exits(1) with a hint to re-run the bootstrap.
+- **Token store location:** defaults to `~/.garminconnect` (the garminconnect convention) — a single `garmin_tokens.json`. Override with `--tokenstore PATH` or the `GARMINTOKENS` env var. The bootstrap and the upload command must point at the same store.
+
+Run the bootstrap under a secrets manager if `.env` holds `op://` references (as the local `.env` does):
+
+```bash
+op run --env-file=.env -- uv run python bootstrap_garmin_session.py
 ```
 
 ## Testing
 
 ```bash
-# Run tests
-pytest
+make test   # or: uv run pytest
 ```
 
-Tests are in `tests/` with fixtures in `tests/fixtures/`. Config in `tests/conftest.py`.
+Tests live in `tests/` (`test_bpo2g.py`) with a real Omron CSV fixture in `tests/fixtures/`. Pytest config (strict markers, durations, junit xml) is in `pyproject.toml`.
 
 ## CI / GitHub Actions
 
 - Workflow: `.github/workflows/python-package.yml`
 - Triggers on push and PR to `main`
-- Matrix: Python 3.10, 3.11
-- Steps: install deps, lint with flake8, run pytest
+- Matrix: Python 3.12, 3.13
+- Steps: `uv sync --frozen`, lint with ruff, type-check with mypy, run pytest
 
 ## Project Structure
 
 ```
 bpo2g/
 ├── src/
-│   └── bpo2g.py              # Main application (~240 lines)
+│   └── bpo2g.py                  # Upload CLI (parse Omron CSV → Garmin)
+├── bootstrap_garmin_session.py   # Mint/refresh the Garmin OAuth token session
 ├── tests/
-│   ├── conftest.py            # pytest fixtures
-│   ├── test_bpo2g.py          # Test suite
+│   ├── conftest.py               # pytest fixtures
+│   ├── test_bpo2g.py             # Test suite
 │   └── fixtures/
-│       └── sample.json
+│       └── Your Requested OMRON Report ... .csv
 ├── .github/workflows/
-│   └── python-package.yml     # CI config
-├── Makefile                   # Build targets
-├── pyproject.toml             # Package metadata
-├── requirements.txt           # Dependencies
-└── README.md                  # Documentation
+│   └── python-package.yml        # CI config
+├── .env.example                  # Template for bootstrap credentials
+├── Makefile                      # Build targets
+├── pyproject.toml                # Package metadata + deps (canonical)
+├── uv.lock                       # Locked dependency graph
+└── README.md                     # Documentation
 ```
 
 ## Key Details
 
 - `BPReading` is a NamedTuple: (time, systolic, diastolic, bpm)
-- Garmin password is prompted securely at runtime (not stored in config)
+- Auth is a persisted OAuth token session (see *Garmin auth model*) — no password prompt
 - Rate limiting: avoid running more than 8-10 times per day
 - Duplicate uploads are not prevented — user must track what's been synced
