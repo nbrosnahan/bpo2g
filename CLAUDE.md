@@ -31,7 +31,7 @@ make preflight    # lint + typecheck + test (run before pushing)
 make bootstrap    # mint/refresh the Garmin token session (see Garmin auth)
 
 # Upload readings (no login — uses the persisted token session):
-uv run python src/bpo2g.py -c <csv_directory> [--tokenstore <path>] [--dry_run] [--requestdelayms <ms>]
+uv run python src/bpo2g.py -c <csv_directory> [--tokenstore <path>] [--dry_run] [--requestdelayms <ms>] [--force]
 ```
 
 ## Garmin auth model
@@ -91,4 +91,4 @@ bpo2g/
 - `BPReading` is a NamedTuple: (time, systolic, diastolic, bpm)
 - Auth is a persisted OAuth token session (see *Garmin auth model*) — no password prompt
 - Rate limiting: avoid running more than 8-10 times per day
-- Duplicate uploads are not prevented — user must track what's been synced
+- Duplicate detection: before uploading, bpo2g queries Garmin over the CSV's date span (`fetch_existing_bp_timestamps`, chunked into ≤28-day windows to respect Garmin's range-query cap) and skips any reading whose minute-precision timestamp already exists there; a timestamp match with *different* values (e.g. a corrected re-export) logs a WARNING but still skips rather than overwriting. Bypass entirely with `--force`. **Known limitation:** the match relies on bpo2g's own UTC-tagging convention (`datetime_to_iso_string` treats naive CSV times as UTC), so it reliably de-dupes readings bpo2g itself uploaded; readings entered by other means with a real local-timezone offset may not line up and could still be re-uploaded.
