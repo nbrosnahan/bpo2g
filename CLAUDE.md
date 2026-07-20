@@ -1,3 +1,11 @@
+---
+name: bpo2g
+title: bpo2g
+status: maintenance
+created: 2026-06-17
+color: "#614051"   # Eggplant
+tags: [cli, python, fitness, health, garmin]
+---
 # CLAUDE.md
 
 ## Project Metadata
