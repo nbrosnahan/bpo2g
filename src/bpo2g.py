@@ -439,7 +439,7 @@ def main(
 
         logger.info(f"Uploaded {uploaded_count}, skipped {skipped_count} (already present)")
     except KeyboardInterrupt:
-        print("\nInput cancelled.")
+        print("\nInput canceled.")
         sys.exit(1)
 
 
