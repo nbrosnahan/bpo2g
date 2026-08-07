@@ -1,0 +1,13 @@
+{
+  "sandbox": {
+    "filesystem": {
+      "allowRead": [
+        ".",
+        "~/.garminconnect"
+      ],
+      "allowWrite": [
+        "~/.garminconnect"
+      ]
+    }
+  }
+}
