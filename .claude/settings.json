@@ -1,12 +1,8 @@
 {
   "sandbox": {
-    "filesystem": {
-      "allowRead": [
-        ".",
-        "~/.garminconnect"
-      ],
-      "allowWrite": [
-        "~/.garminconnect"
+    "network": {
+      "allowedDomains": [
+        "*.garmin.com"
       ]
     }
   }
