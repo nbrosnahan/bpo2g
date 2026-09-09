@@ -1,4 +1,6 @@
-.PHONY: setup build lint format typecheck test sync bootstrap preflight
+.PHONY: setup build lint format typecheck test sync bootstrap preflight lint-markdown lint-markdown-fix
+
+MARKDOWNLINT_CONFIG := $(HOME)/.claude/.markdownlint-cli2.jsonc
 
 # Create/update the uv-managed virtualenv from uv.lock (incl. dev deps).
 setup sync:
@@ -23,5 +25,13 @@ test:
 bootstrap:
 	uv run python bootstrap_garmin_session.py
 
+# Lint every Markdown file — zero warnings required.
+lint-markdown:
+	markdownlint-cli2 --config $(MARKDOWNLINT_CONFIG) '**/*.md'
+
+# Auto-fix fixable Markdown issues (rewrites files in place).
+lint-markdown-fix:
+	markdownlint-cli2 --fix --config $(MARKDOWNLINT_CONFIG) '**/*.md'
+
 # Full local pre-merge gate.
-preflight: lint typecheck test
+preflight: lint typecheck test lint-markdown
