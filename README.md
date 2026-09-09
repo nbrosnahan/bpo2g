@@ -1,3 +1,5 @@
+# bpo2g
+
 **bpo2g** - Parse blood pressure reports exported from Omron as .csv files then import them into Garmin Connect
 
 This is a simple python program that loads files that have been exported from OMRON containing blood pressure history data.
@@ -10,17 +12,20 @@ In the Omron Connect app, go to History > Blood Pressure and tap the Share butto
 
 Select only Blood Pressure and the period you want, then choose the CSV format and request Omron to email you the report.
 
-Once you receive the emailed .csv report, download the CSV report attachment into a local directory.  The bpo2g tool will work with multiple CSV reports.  
+Once you receive the emailed .csv report, download the CSV report attachment into a local directory. The bpo2g tool will
+work with multiple CSV reports.
 
 **WARNING!!** Make sure they have non-overlapping date ranges so you don't end up with duplicate data in Garmin Connect.
 
 The Omron BP reports are named like this (in English):
-```
+
+```text
 Your Requested OMRON Report from Jan 01 2025 to Jan 22 2025.csv
 ```
 
-And the format should be this: 
-```
+And the format should be this:
+
+```csv
 Date,Time,Systolic (mmHg),Diastolic (mmHg),Pulse (bpm),Symptoms,Consumed,TruRead,Notes
 Jan 12 2025,08:12,114,74,47,-,-,-,-
 Jan 10 2025,07:49,114,71,47,-,-,-,-
@@ -86,7 +91,3 @@ the [garminconnect](https://pypi.org/project/garminconnect/) library.
 
 > **Rate limit:** avoid running more than ~8–10 times per day, and remember
 > bpo2g does **not** de-duplicate — don't upload overlapping date ranges.
-
-
-
-
