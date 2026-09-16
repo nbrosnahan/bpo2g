@@ -1,5 +1,16 @@
 # Project Work Log
 
+## 2026-09-16 — Test: read_csv_data dedupes across files
+
+**Goal:** Cover the one behavior of `read_csv_data` no test exercised — a reading with the same timestamp in two files
+yields one entry. Local-coder trial task, produced by `qwen3.8-coder`.
+
+**Done:**
+
+- `test_read_csv_data_dedupes_by_timestamp_across_files`: two copies of the fixture under distinct Omron-pattern
+  names, asserts both are discovered and the result has one entry per timestamp. Verified it fails if the dedupe key
+  is broken. Review added the discovery guard and dropped a sort assertion already covered elsewhere.
+
 ## 2026-09-16 — Fix f-string in non-CSV skip log
 
 **Goal:** One-line bug fix, produced by the local `gemma4-26b-coder` agent as a local-coder trial task.
