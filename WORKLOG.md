@@ -1,5 +1,14 @@
 # Project Work Log
 
+## 2026-09-16 — Fix f-string in non-CSV skip log
+
+**Goal:** One-line bug fix, produced by the local `gemma4-26b-coder` agent as a local-coder trial task.
+
+**Done:**
+
+- `read_csv_data` logged the literal text `{path}` when skipping a non-CSV file — the `logger.info` call was missing
+  its `f` prefix. Fixed; lint and the 17 tests pass.
+
 ## 2026-06-13 — Modernize deps + fix Garmin auth (token-session model)
 
 **Goal:** Make the project work again — Garmin's credential login is blocked, and the libraries were stale.

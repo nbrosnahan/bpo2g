@@ -193,7 +193,7 @@ def read_csv_data(filepath: str) -> OrderedDict[datetime, BPReading]:
             for reading in readings:
                 all_readings[reading.time] = reading
         else:
-            logger.info("Skipping non-CSV path: {path}")
+            logger.info(f"Skipping non-CSV path: {path}")
     sorted_readings = sort_dict_by_datetime_keys(all_readings)
 
     num_readings = len(all_readings)
