@@ -67,6 +67,17 @@ def test_read_csv_data_sorts_by_datetime(tmp_path, omron_csv_path):
     assert keys[-1] == datetime(2025, 1, 12, 8, 12)
 
 
+def test_read_csv_data_dedupes_by_timestamp_across_files(tmp_path, omron_csv_path):
+    # Copy the fixture CSV under two distinct Omron-pattern names.
+    (tmp_path / omron_csv_path.name).write_text(omron_csv_path.read_text())
+    (tmp_path / "Your Requested OMRON Report copy.csv").write_text(omron_csv_path.read_text())
+    assert len(bpo2g.list_omron_bp_csv_files(str(tmp_path))) == 2
+
+    result = bpo2g.read_csv_data(str(tmp_path))
+
+    assert len(result) == len(bpo2g.read_omron_bp_csv_file(str(omron_csv_path)))
+
+
 def test_datetime_to_iso_string_adds_utc_when_naive():
     iso = bpo2g.datetime_to_iso_string(datetime(2025, 1, 6, 8, 46))
     assert iso == "2025-01-06T08:46:00+00:00"
