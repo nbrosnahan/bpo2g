@@ -59,3 +59,21 @@ yields one entry. Local-coder trial task, produced by `qwen3.8-coder`.
 - **Placeholder tests replaced (not silently dropped):** `test_dummy`/`test_process_data` asserted nothing about real
   behavior; replaced with tests that exercise the actual parsing/auth code. Old `tests/fixtures/sample.json` removed
   (unused).
+
+## 2026-09-23 — Move agent instructions to AGENTS.md
+
+**Goal:** Move the project instructions file from `CLAUDE.md` to `AGENTS.md` so it's shared with other coding agents,
+per the fleet-wide convention.
+
+**Done:**
+
+- `git mv CLAUDE.md AGENTS.md`, preserving the YAML frontmatter fleet tooling reads.
+- `CLAUDE.md` replaced with a stub that `@`-imports `AGENTS.md`.
+- `AGENTS.md`'s own H1 heading (previously `# CLAUDE.md`) updated to match.
+
+**Decisions:**
+
+- **Stub, not a plain rename.** Claude Code only auto-loads `AGENTS.md` where no `CLAUDE.md` exists in the directory
+  or a parent, and `~/Projects/CLAUDE.md` exists above every project — so a bare rename would leave Claude Code
+  reading no project instructions at all. The stub's `@AGENTS.md` import is the documented way to share one file
+  across agents.
